@@ -1,0 +1,6 @@
+[submodule "scion-step-proxy/smallstep-cli-scion"]
+	path = scion-step-proxy/smallstep-cli-scion
+	url = git@github.com:netsys-lab/smallstep-cli-scion.git
+[submodule "scion-step-proxy/smallstep-ca-scion"]
+	path = scion-step-proxy/smallstep-ca-scion
+	url = git@github.com:netsys-lab/smallstep-ca-scion.git
