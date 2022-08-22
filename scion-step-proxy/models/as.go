@@ -3,7 +3,7 @@
 // Source:
 //     Title: CA Service
 //     Version: 0.1.0
-package api
+package models
 
 // AS is a value type.
 type AS string

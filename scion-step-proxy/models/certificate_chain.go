@@ -3,7 +3,7 @@
 // Source:
 //     Title: CA Service
 //     Version: 0.1.0
-package api
+package models
 
 import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"

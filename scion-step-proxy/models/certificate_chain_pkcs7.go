@@ -3,7 +3,7 @@
 // Source:
 //     Title: CA Service
 //     Version: 0.1.0
-package api
+package models
 
 // CertificateChainPKCS7 is a value type. Certificate chain containing the the new AS certificate and the issuing
 // CA certificate encoded in a degenerate PKCS#7 data structure.
