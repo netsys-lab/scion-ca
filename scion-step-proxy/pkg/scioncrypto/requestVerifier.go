@@ -3,10 +3,12 @@ package scioncrypto
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -14,6 +16,75 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/sirupsen/logrus"
 )
+
+func decodePem(certInput []byte) tls.Certificate {
+	var cert tls.Certificate
+	certPEMBlock := []byte(certInput)
+	var certDERBlock *pem.Block
+	for {
+		certDERBlock, certPEMBlock = pem.Decode(certPEMBlock)
+		if certDERBlock == nil {
+			break
+		}
+		if certDERBlock.Type == "CERTIFICATE" {
+			cert.Certificate = append(cert.Certificate, certDERBlock.Bytes)
+		}
+	}
+	return cert
+}
+
+func VerifyCMSSignedRenewalRequest(ctx context.Context,
+	req []byte, r *RequestVerifier) (*x509.CertificateRequest, error) {
+
+	ci, err := protocol.ParseContentInfo(req)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing ContentInfo", err)
+	}
+	sd, err := ci.SignedDataContent()
+	if err != nil {
+		return nil, serrors.WrapStr("parsing SignedData", err)
+	}
+
+	chain, err := ExtractChain(sd)
+	if err != nil {
+		return nil, serrors.WrapStr("extracting signing certificate chain", err)
+	}
+
+	if err := r.VerifySignature(ctx, sd, chain); err != nil {
+		return nil, err
+	}
+
+	pld, err := sd.EncapContentInfo.EContentValue()
+	if err != nil {
+		return nil, serrors.WrapStr("reading payload", err)
+	}
+
+	csr, err := x509.ParseCertificateRequest(pld)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing CSR", err)
+	}
+
+	return csr, nil // r.processCSR(csr, chain[0])
+}
+
+func ExtractAndVerifyCsr(trcPath string, bts []byte, file *os.File) error {
+	r := RequestVerifier{
+		TRCFetcher: &LocalFetcher{
+			TrcPath: trcPath,
+		},
+	}
+
+	csr, err := VerifyCMSSignedRenewalRequest(context.Background(), bts, &r)
+	if err != nil {
+		return err
+	}
+
+	err = pem.Encode(file, &pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csr.Raw})
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 // DecodeSignedTRC parses the signed TRC.
 func DecodeSignedTRC(raw []byte) (cppki.SignedTRC, error) {
@@ -44,11 +115,19 @@ func DecodeSignedTRC(raw []byte) (cppki.SignedTRC, error) {
 }
 
 type LocalFetcher struct {
+	TrcPath string
+}
+
+func NewLocalFetcher(trcPath string) *LocalFetcher {
+	return &LocalFetcher{
+		TrcPath: trcPath,
+	}
+
 }
 
 func (lf *LocalFetcher) SignedTRC(ctx context.Context, id cppki.TRCID) (cppki.SignedTRC, error) {
 	trc := cppki.SignedTRC{}
-	trcFile := fmt.Sprintf("%s.trc", id.String())
+	trcFile := filepath.Join(lf.TrcPath, fmt.Sprintf("%s.trc", id.String()))
 	logrus.Warn("Reading TRC ", trcFile)
 	bts, err := os.ReadFile(trcFile)
 	if err != nil {

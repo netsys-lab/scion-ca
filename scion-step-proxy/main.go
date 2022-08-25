@@ -8,6 +8,6 @@ import (
 
 func main() {
 
-	r := api.NewRouter()
-	http.ListenAndServe(":3000", r)
+	r := api.NewApiRouter("", "lkasjdlkasjdlkasjdklsaj", "3d")
+	http.ListenAndServe(":3000", r.Router)
 }
