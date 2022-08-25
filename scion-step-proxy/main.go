@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"net/http"
+	"time"
 
 	"github.com/netsys-lab/scion-step-proxy/api"
 	"github.com/sirupsen/logrus"
@@ -16,8 +17,27 @@ var (
 	trcPath      = flag.String("trcPath", "", "Path to trc files with the format $ISD-$base-$serial.trc (default: '')")
 )
 
+// Logrus setup function
+func configureLogging() error {
+	l, err := logrus.ParseLevel(*loglevel)
+	if err != nil {
+		return err
+	}
+	logrus.SetLevel(l)
+	logrus.SetFormatter(&logrus.JSONFormatter{
+		TimestampFormat:   time.RFC3339Nano,
+		DisableHTMLEscape: true,
+	})
+	return nil
+}
+
 func main() {
 	flag.Parse()
+
+	err := configureLogging()
+	if err != nil {
+		logrus.Fatal(err)
+	}
 
 	if jwtSecrect == nil || *jwtSecrect == "" {
 		logrus.Fatal("No jwtSecret provided")
