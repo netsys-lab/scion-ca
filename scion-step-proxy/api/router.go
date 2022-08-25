@@ -10,10 +10,12 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/netsys-lab/scion-step-proxy/database"
 	"github.com/netsys-lab/scion-step-proxy/models"
 	"github.com/netsys-lab/scion-step-proxy/pkg/scioncrypto"
 	"github.com/netsys-lab/scion-step-proxy/pkg/step"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
 
 // NewRouter creates a new router for the spec and the given handlers.
@@ -28,20 +30,22 @@ type ApiRouter struct {
 	TrcPath      string
 	JwtSecret    string
 	CertDuration string
+	DB           *gorm.DB
 	Router       http.Handler
 }
 
-func NewApiRouter(trcPath, jwtSecret, certDuration string) *ApiRouter {
+func NewApiRouter(trcPath, jwtSecret, certDuration string, db *gorm.DB) *ApiRouter {
 	r := chi.NewRouter()
 	ar := &ApiRouter{
 		TrcPath:      trcPath,
 		JwtSecret:    jwtSecret,
 		CertDuration: certDuration,
+		DB:           db,
 		Router:       r,
 	}
 
 	r.Get("/healthcheck", healthCheck)
-	r.Post("/auth/token", auth)
+	r.Post("/auth/token", ar.auth)
 	r.Post("/ra/isds/{isdNumber}/ases/{asNumber}/certificates/renewal", ar.renewCert)
 
 	return ar
@@ -116,10 +120,21 @@ func (ar *ApiRouter) renewCert(wr http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func auth(wr http.ResponseWriter, req *http.Request) {
+func (ar *ApiRouter) auth(wr http.ResponseWriter, req *http.Request) {
 	var accessCredentials models.AccessCredentials
 	if err := json.NewDecoder(req.Body).Decode(&accessCredentials); err != nil {
 		sendProblem(wr, "auth/token", "Could not parse JSON request body", http.StatusBadRequest)
+		return
+	}
+
+	// TODO: Remove
+	logrus.Info(accessCredentials)
+
+	var user database.User
+	result := ar.DB.Where("clientId = ? AND clientSecret = ?", accessCredentials.ClientId, accessCredentials.ClientSecret).First(&user)
+	if result.Error != nil {
+		logrus.Error(result.Error)
+		sendProblem(wr, "/ra/isds/{isdNumber}/ases/{asNumber}/certificates/renewal", "Could not write response", http.StatusInternalServerError)
 		return
 	}
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/netsys-lab/scion-step-proxy/api"
+	"github.com/netsys-lab/scion-step-proxy/database"
 	"github.com/sirupsen/logrus"
 )
 
@@ -15,6 +16,7 @@ var (
 	jwtSecrect   = flag.String("jwtSecrect", "", "Secret to generate JWT's (default: unset)")
 	certDuration = flag.String("certDuration", "1d", "Expiration Time of certs (default: 1d)")
 	trcPath      = flag.String("trcPath", "", "Path to trc files with the format $ISD-$base-$serial.trc (default: '')")
+	seedFile     = flag.String("seedFile", "", "Path to seedFile in JSON format (default: '')")
 )
 
 // Logrus setup function
@@ -43,6 +45,17 @@ func main() {
 		logrus.Fatal("No jwtSecret provided")
 	}
 
-	r := api.NewApiRouter(*trcPath, *jwtSecrect, *certDuration)
+	db, err := database.InitializeDatabaseLayer()
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
+	if seedFile != nil && *seedFile != "" {
+		if err = database.RunSeeds(db, *seedFile); err != nil {
+			logrus.Fatal(err)
+		}
+	}
+
+	r := api.NewApiRouter(*trcPath, *jwtSecrect, *certDuration, db)
 	http.ListenAndServe(*local, r.Router)
 }
