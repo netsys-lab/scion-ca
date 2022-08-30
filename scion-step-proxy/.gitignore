@@ -4,3 +4,4 @@
 *.csr
 
 scion-step-proxy
+seeds.json

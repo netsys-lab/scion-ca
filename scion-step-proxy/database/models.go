@@ -8,6 +8,6 @@ import (
 type User struct {
 	gorm.Model
 	Name         string
-	ClientId     string
-	ClientSecret string
+	Clientid     string
+	Clientsecret string
 }

@@ -2,6 +2,7 @@ package database
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/sirupsen/logrus"
@@ -38,7 +39,8 @@ func RunSeeds(db *gorm.DB, seedFilePath string) error {
 	}
 
 	for _, u := range data.Users {
-		if res := db.Create(u); res.Error != nil {
+		fmt.Println(u)
+		if res := db.Create(&u); res.Error != nil {
 			return err
 		}
 	}

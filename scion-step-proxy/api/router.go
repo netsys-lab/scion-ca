@@ -5,8 +5,12 @@ package api
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/golang-jwt/jwt/v4"
@@ -51,6 +55,13 @@ func NewApiRouter(trcPath, jwtSecret, certDuration string, db *gorm.DB) *ApiRout
 	return ar
 }
 
+func randomString(length int) string {
+	rand.Seed(time.Now().UnixNano())
+	b := make([]byte, length)
+	rand.Read(b)
+	return fmt.Sprintf("%x", b)[:length]
+}
+
 func (ar *ApiRouter) renewCert(wr http.ResponseWriter, req *http.Request) {
 	var renewRequest models.RenewalRequest
 	if err := json.NewDecoder(req.Body).Decode(&renewRequest); err != nil {
@@ -86,14 +97,15 @@ func (ar *ApiRouter) renewCert(wr http.ResponseWriter, req *http.Request) {
 
 	stepCli := step.NewStepCliAdapter()
 
-	certFile, err := os.CreateTemp("/tmp/", "*.crt")
+	// certFile, err := os.CreateTemp("/tmp/", "*.crt")
+	certFileName := filepath.Join("/tmp", fmt.Sprintf("%s.cert", randomString(16)))
 	if err != nil {
 		logrus.Error(err)
 		sendProblem(wr, "/ra/isds/{isdNumber}/ases/{asNumber}/certificates/renewal", "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	err = stepCli.SignCert(file.Name(), certFile.Name(), ar.CertDuration)
+	err = stepCli.SignCert(file.Name(), certFileName, ar.CertDuration)
 	os.Remove(file.Name())
 	if err != nil {
 		logrus.Error(err)
@@ -101,13 +113,13 @@ func (ar *ApiRouter) renewCert(wr http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	respCertChain, err := scioncrypto.ExtractCerts(certFile.Name())
+	respCertChain, err := scioncrypto.ExtractCerts(certFileName)
 	if err != nil {
 		logrus.Error(err)
 		sendProblem(wr, "/ra/isds/{isdNumber}/ases/{asNumber}/certificates/renewal", "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	os.Remove(certFile.Name())
+	os.Remove(certFileName)
 
 	resp := models.RenewalResponse{
 		CertificateChain: respCertChain,

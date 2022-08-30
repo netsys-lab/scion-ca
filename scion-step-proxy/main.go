@@ -12,9 +12,9 @@ import (
 
 var (
 	loglevel     = flag.String("loglevel", "INFO", "Log level (ERROR|WARN|INFO|DEBUG|TRACE)")
-	local        = flag.String("local", ":8088", "Local listen address (default: :3000)")
+	local        = flag.String("local", ":3000", "Local listen address (default: :3000)")
 	jwtSecrect   = flag.String("jwtSecrect", "", "Secret to generate JWT's (default: unset)")
-	certDuration = flag.String("certDuration", "1d", "Expiration Time of certs (default: 1d)")
+	certDuration = flag.String("certDuration", "24h", "Expiration Time of certs (default: 24h)")
 	trcPath      = flag.String("trcPath", "", "Path to trc files with the format $ISD-$base-$serial.trc (default: '')")
 	seedFile     = flag.String("seedFile", "", "Path to seedFile in JSON format (default: '')")
 )

@@ -22,7 +22,7 @@ func (sca *StepCliAdapter) SignCert(scrPath, outputPath, duration string) error 
 	var stdErr bytes.Buffer
 	cmd.Stderr = &stdErr
 	cmd.Stdout = &out
-	log.Infof("Executing: %s\n", cmd.String())
+	log.Infof("Executing: %s", cmd.String())
 	err := cmd.Run()
 	if err == nil {
 		log.Infof("Execute successful")
