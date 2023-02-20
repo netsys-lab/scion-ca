@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -18,6 +19,7 @@ import (
 	"github.com/netsys-lab/scion-step-proxy/models"
 	"github.com/netsys-lab/scion-step-proxy/pkg/scioncrypto"
 	"github.com/netsys-lab/scion-step-proxy/pkg/step"
+	caconfig "github.com/scionproto/scion/private/ca/config"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -32,7 +34,7 @@ import (
 
 type ApiRouter struct {
 	TrcPath      string
-	JwtSecret    string
+	JwtSecret    []byte
 	CertDuration string
 	DB           *gorm.DB
 	Router       http.Handler
@@ -40,9 +42,17 @@ type ApiRouter struct {
 
 func NewApiRouter(trcPath, jwtSecret, certDuration string, db *gorm.DB) *ApiRouter {
 	r := chi.NewRouter()
+
+	secretKey := caconfig.NewPEMSymmetricKey(jwtSecret)
+
+	secretValue, err := secretKey.Get()
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
 	ar := &ApiRouter{
 		TrcPath:      trcPath,
-		JwtSecret:    jwtSecret,
+		JwtSecret:    secretValue,
 		CertDuration: certDuration,
 		DB:           db,
 		Router:       r,
@@ -63,6 +73,15 @@ func randomString(length int) string {
 }
 
 func (ar *ApiRouter) renewCert(wr http.ResponseWriter, req *http.Request) {
+
+	_, err := authJwt(req.Header.Get("authorization"), ar.JwtSecret)
+	if err != nil {
+		logrus.Warn("JWT auth failed")
+		logrus.Error(err)
+		sendProblem(wr, "/ra/isds/{isdNumber}/ases/{asNumber}/certificates/renewal", "JWT auth failed", http.StatusUnauthorized)
+		return
+	}
+
 	var renewRequest models.RenewalRequest
 	if err := json.NewDecoder(req.Body).Decode(&renewRequest); err != nil {
 		logrus.Error(err)
@@ -104,9 +123,15 @@ func (ar *ApiRouter) renewCert(wr http.ResponseWriter, req *http.Request) {
 		sendProblem(wr, "/ra/isds/{isdNumber}/ases/{asNumber}/certificates/renewal", "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	err = os.Chmod(file.Name(), 0777)
+	if err != nil {
+		logrus.Error(err)
+		sendProblem(wr, "/ra/isds/{isdNumber}/ases/{asNumber}/certificates/renewal", "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 
 	err = stepCli.SignCert(file.Name(), certFileName, ar.CertDuration)
-	os.Remove(file.Name())
+	// os.Remove(file.Name())
 	if err != nil {
 		logrus.Error(err)
 		sendProblem(wr, "/ra/isds/{isdNumber}/ases/{asNumber}/certificates/renewal", "Internal Server Error", http.StatusInternalServerError)
@@ -119,7 +144,7 @@ func (ar *ApiRouter) renewCert(wr http.ResponseWriter, req *http.Request) {
 		sendProblem(wr, "/ra/isds/{isdNumber}/ases/{asNumber}/certificates/renewal", "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	os.Remove(certFileName)
+	// os.Remove(certFileName)
 
 	resp := models.RenewalResponse{
 		CertificateChain: respCertChain,
@@ -129,6 +154,37 @@ func (ar *ApiRouter) renewCert(wr http.ResponseWriter, req *http.Request) {
 		logrus.Error(err)
 		sendProblem(wr, "/ra/isds/{isdNumber}/ases/{asNumber}/certificates/renewal", "Could not write response", http.StatusInternalServerError)
 		return
+	}
+}
+
+func authJwt(tokenStr string, secret []byte) (*jwt.Token, error) {
+
+	// Remove bearer things
+	realToken := strings.Replace(tokenStr, "Bearer ", "", 1)
+	// logrus.Info(realToken)
+
+	// Parse takes the token string and a function for looking up the key. The latter is especially
+	// useful if you use multiple keys for your application.  The standard is to use 'kid' in the
+	// head of the token to identify which key to use, but the parsed token (head and claims) is provided
+	// to the callback, providing flexibility.
+	token, err := jwt.Parse(realToken, func(token *jwt.Token) (interface{}, error) {
+		// Don't forget to validate the alg is what you expect:
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+
+		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
+		return secret, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return token, nil
+	} else {
+		return nil, fmt.Errorf("Token invalid")
 	}
 }
 
@@ -146,7 +202,7 @@ func (ar *ApiRouter) auth(wr http.ResponseWriter, req *http.Request) {
 	result := ar.DB.Where("clientId = ? AND clientSecret = ?", accessCredentials.ClientId, accessCredentials.ClientSecret).First(&user)
 	if result.Error != nil {
 		logrus.Error(result.Error)
-		sendProblem(wr, "/ra/isds/{isdNumber}/ases/{asNumber}/certificates/renewal", "Could not write response", http.StatusInternalServerError)
+		sendProblem(wr, "/ra/isds/{isdNumber}/ases/{asNumber}/certificates/renewal", "Could not write response", http.StatusUnauthorized)
 		return
 	}
 
@@ -158,7 +214,7 @@ func (ar *ApiRouter) auth(wr http.ResponseWriter, req *http.Request) {
 	})
 
 	// Sign and get the complete encoded token as a string using the secret
-	tokenString, err := token.SignedString([]byte("asdölkölkasd"))
+	tokenString, err := token.SignedString([]byte(ar.JwtSecret))
 	if err != nil {
 		logrus.Error(err)
 		sendProblem(wr, "auth/token", "Could not create token", http.StatusInternalServerError)
