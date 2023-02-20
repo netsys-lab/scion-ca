@@ -2,6 +2,6 @@
 *.cert
 *.crt
 *.csr
-
+*.key
 scion-step-proxy
 seeds.json
