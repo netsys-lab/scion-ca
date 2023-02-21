@@ -41,18 +41,14 @@ echo "Generating regular-voting key pair... done."
 echo "Generating TRC..."
 cp trc.toml "${ISD_AS}-trc.toml"
 replaceVars "${ISD_AS}-trc.toml"
-# scion-pki certificate create sensitive.tmpl ISD$ISD_AS.sensitive.crt sensitive-voting.key  --profile=sensitive-voting "--not-before=2022-07-08T07:20:50.52Z" "--not-after=2027-07-08T07:20:50.52Z"
-# scion-pki certificate create regular.tmpl ISD$ISD_AS.regular.crt regular-voting.key  --profile=regular-voting "--not-before=2022-07-08T07:20:50.52Z" "--not-after=2027-07-08T07:20:50.52Z"
-
 
 # Create TRC Payload
 scion-pki trcs payload --template "${ISD_AS}-trc.toml" --out ISD$ISD-B1-S1.pld.der
-#./scion-pki trc payload -t trc.toml -o payload.der
 
 # Sign TRC Payload
-# ./scion-pki trc sign payload.der ISD71-AS20965.regular.crt regular-voting.key --out ISD71-AS20965-B1-S2.regular.trc
 scion-pki trc sign ISD$ISD-B1-S1.pld.der ISD$ISD_AS.sensitive.crt ISD$ISD_AS.sensitive.key --out ISD$ISD-B1-S1.sensitive.trc
 scion-pki trc sign ISD$ISD-B1-S1.pld.der ISD$ISD_AS.regular.crt ISD$ISD_AS.regular.key --out ISD$ISD-B1-S1.regular.trc
 
 # Combine TRC Payload
 scion-pki trc combine --payload ISD$ISD-B1-S1.pld.der --format pem -o ISD$ISD-B1-S1.trc ISD$ISD-B1-S1.sensitive.trc ISD$ISD-B1-S1.regular.trc
+echo "Generating TRC... done."

@@ -6,7 +6,7 @@ services:
     command: -seedFile=/etc/step-ca/proxy-seeds.json -jwtSecrect=/etc/scion/private-ca1.pem -trcPath=/etc/scion/certs -certDuration=72h
     volumes:
       - "./step-ca:/etc/step-ca"
-      - "/etc/scion:/etc/scion"
+      - "./etc/scion:/etc/scion"
     environment:
       - "DATABASE_PATH=/etc/step-ca/step-proxy.sqlite"
       - "DATABASE=sqlite"
@@ -18,9 +18,9 @@ services:
       - "./step-ca:/etc/step-ca"
     environment:
       - "SCION_AS_SUBJECT_COUNTRY=DE"
-      - "SCION_AS_SUBJECT_ORGANIZATION=OVGU Magdeburg for GEANT"
-      - "SCION_AS_SUBJECT_COMMONNAME=SCION Education Network CA"
-      - "SCION_AS_PROVISIONER=71-20295" # Needs to be ISD-AS
+      - "SCION_AS_SUBJECT_ORGANIZATION=OVGU Magdeburg"
+      - "SCION_AS_SUBJECT_COMMONNAME=OVGU Magdeburg Test SCION CA"
+      - "SCION_AS_PROVISIONER=1-999" # Needs to be ISD-AS
   smallstep-cli-scion:
     build: smallstep-cli-scion
     environment:
@@ -28,5 +28,5 @@ services:
       - "CA_ROOT_KEY=/etc/step-ca/root.key"
     volumes:
       - "./step-ca:/etc/step-ca"
-      - "/etc/scion:/etc/scion"
+      - "./etc/scion:/etc/scion"
     # TODO: Do ca init once, otherwise just sleep until container exits, provides playground to work with certs
