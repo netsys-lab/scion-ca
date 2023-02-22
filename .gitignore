@@ -1,1 +1,11 @@
 ./step-ca
+*.crt
+*.tmpl
+*.key
+*.trc
+*.der
+*.toml
+*.pem
+step-ca/.step
+step-ca/step
+step-ca/step-proxy.sqlite

@@ -2,31 +2,48 @@ version: "3.3"
 services:
   scion-step-proxy:
     build: scion-step-proxy
-    # TODO: Fix volumes match args
-    command: -seedFile=/etc/step-ca/proxy-seeds.json -jwtSecrect=/etc/scion/private-ca1.pem -trcPath=/etc/scion/certs -certDuration=72h
+    network_mode: host
+    command: -seedFile=/etc/step-ca/seeds.json -jwtSecrect=/etc/step-ca/shared_key.pem -trcPath=/etc/scion/certs -certDuration=72h
     volumes:
       - "./step-ca:/etc/step-ca"
-      - "./etc/scion:/etc/scion"
+      - "./step-ca:/etc/scion/certs"
     environment:
       - "DATABASE_PATH=/etc/step-ca/step-proxy.sqlite"
       - "DATABASE=sqlite"
-      # TODO: Path to /etc/step-ca for /usr/bin
   smallstep-ca-scion:
     build: smallstep-ca-scion
-    command: --password-file=/etc/step-ca/.step/pw.key /etc/step-ca/.step/config/ca.json
+    network_mode: host
+    depends_on:
+      - smallstep-cli-scion
+    command: --password-file=/etc/step-ca/scion-ca.pw /root/.step/config/ca.json
+    restart: on-failure:10
     volumes:
       - "./step-ca:/etc/step-ca"
+      - "./step-ca/.step:/root/.step/"
     environment:
+      - "SCION_CA_SUBJECT_COUNTRY=DE"
+      - "SCION_CA_SUBJECT_ORGANIZATION=OVGU Magdeburg"
+      - "SCION_CA_SUBJECT_COMMONNAME=OVGU Magdeburg Test SCION CA"
       - "SCION_AS_SUBJECT_COUNTRY=DE"
       - "SCION_AS_SUBJECT_ORGANIZATION=OVGU Magdeburg"
       - "SCION_AS_SUBJECT_COMMONNAME=OVGU Magdeburg Test SCION CA"
-      - "SCION_AS_PROVISIONER=1-999" # Needs to be ISD-AS
+      - "SCION_CA_PROVISIONER=1-999" # Needs to be ISD-AS
   smallstep-cli-scion:
     build: smallstep-cli-scion
+    network_mode: host
+    command: "bash -c /startup.sh"
     environment:
-      - "CA_ROOT_CERT=/etc/step-ca/root.crt"
-      - "CA_ROOT_KEY=/etc/step-ca/root.key"
+      - "CA_ROOT_CERT=/etc/step-ca/ISD1-999.root.crt"
+      - "CA_ROOT_KEY=/etc/step-ca/ISD1-999.root.key"
+      - "CA_PASSWORD_FILE=/etc/step-ca/scion-ca.pw"
+      - "SCION_CA_SUBJECT_COUNTRY=DE"
+      - "SCION_CA_SUBJECT_ORGANIZATION=OVGU Magdeburg"
+      - "SCION_CA_SUBJECT_COMMONNAME=OVGU Magdeburg Test SCION CA"
+      - "SCION_AS_SUBJECT_COUNTRY=DE"
+      - "SCION_AS_SUBJECT_ORGANIZATION=OVGU Magdeburg"
+      - "SCION_AS_SUBJECT_COMMONNAME=OVGU Magdeburg Test SCION CA"
+      - "SCION_CA_PROVISIONER=1-999" # Needs to be ISD-AS
     volumes:
       - "./step-ca:/etc/step-ca"
       - "./etc/scion:/etc/scion"
-    # TODO: Do ca init once, otherwise just sleep until container exits, provides playground to work with certs
+      - "./startup.sh:/startup.sh"
