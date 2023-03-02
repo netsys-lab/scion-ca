@@ -1,9 +1,11 @@
 version: "3.3"
 services:
   scion-step-proxy:
+    # Listens on port 3000
     build: scion-step-proxy
+    # image: scion-step-proxy # For running on remote without cloning the full repo
     network_mode: host
-    command: -seedFile=/etc/step-ca/seeds.json -jwtSecrect=/etc/step-ca/shared_key.pem -trcPath=/etc/scion/certs -certDuration=72h
+    command: -seedFile=/etc/step-ca/seeds.json -jwtSecrect=/etc/step-ca/jwt-secret.pem -trcPath=/etc/scion/certs -certDuration=72h
     volumes:
       - "./step-ca:/etc/step-ca"
       - "./step-ca:/etc/scion/certs"
@@ -12,6 +14,7 @@ services:
       - "DATABASE=sqlite"
   smallstep-ca-scion:
     build: smallstep-ca-scion
+    # image: smallstep-ca-scion # For running on remote without cloning the full repo
     network_mode: host
     depends_on:
       - smallstep-cli-scion
@@ -20,30 +23,34 @@ services:
     volumes:
       - "./step-ca:/etc/step-ca"
       - "./step-ca/.step:/root/.step/"
-    environment:
-      - "SCION_CA_SUBJECT_COUNTRY=DE"
-      - "SCION_CA_SUBJECT_ORGANIZATION=OVGU Magdeburg"
-      - "SCION_CA_SUBJECT_COMMONNAME=OVGU Magdeburg Test SCION CA"
-      - "SCION_AS_SUBJECT_COUNTRY=DE"
-      - "SCION_AS_SUBJECT_ORGANIZATION=OVGU Magdeburg"
-      - "SCION_AS_SUBJECT_COMMONNAME=OVGU Magdeburg Test SCION CA"
-      - "SCION_CA_PROVISIONER=1-999" # Needs to be ISD-AS
+    env_file:
+      - .env
   smallstep-cli-scion:
     build: smallstep-cli-scion
+    # image: smallstep-cli-scion # For running on remote without cloning the full repo
     network_mode: host
     command: "bash -c /startup.sh"
-    environment:
-      - "CA_ROOT_CERT=/etc/step-ca/ISD1-999.root.crt"
-      - "CA_ROOT_KEY=/etc/step-ca/ISD1-999.root.key"
-      - "CA_PASSWORD_FILE=/etc/step-ca/scion-ca.pw"
-      - "SCION_CA_SUBJECT_COUNTRY=DE"
-      - "SCION_CA_SUBJECT_ORGANIZATION=OVGU Magdeburg"
-      - "SCION_CA_SUBJECT_COMMONNAME=OVGU Magdeburg Test SCION CA"
-      - "SCION_AS_SUBJECT_COUNTRY=DE"
-      - "SCION_AS_SUBJECT_ORGANIZATION=OVGU Magdeburg"
-      - "SCION_AS_SUBJECT_COMMONNAME=OVGU Magdeburg Test SCION CA"
-      - "SCION_CA_PROVISIONER=1-999" # Needs to be ISD-AS
+    env_file:
+      - .env
     volumes:
       - "./step-ca:/etc/step-ca"
+      - "./step-internal:/etc/step-internal"
       - "./etc/scion:/etc/scion"
       - "./startup.sh:/startup.sh"
+  caddy:
+    image: caddy/caddy:2.6.4-alpine
+    network_mode: host
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy/data:/data
+      - ./data/caddy/config:/config
+      - /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt # Adds own trusted root cert to caddy
+    restart: unless-stopped
+  step-ca:
+    build: smallstep-ca
+    command: --password-file=/etc/step-internal/step-ca.pw /root/.step/config/ca.json
+    # image: smallstep-ca
+    network_mode: host
+    volumes:
+      - "./step-internal/:/etc/step-internal/"
+      - "./step-internal/.step:/root/.step/"

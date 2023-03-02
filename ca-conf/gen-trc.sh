@@ -1,9 +1,11 @@
 # !/bin/bash
-
+export $(cat ../.env | sed 's/#.*//g' | xargs)
 set -e
-ISD=1
-AS=999
-ISD_AS=$ISD-$AS
+
+# AS
+# ISD
+# ISD-AS from ../.env
+
 NOW=$(date +%s)
 NAME="Sample ISD"
 

@@ -6,6 +6,11 @@
 *.der
 *.toml
 *.pem
-step-ca/.step
-step-ca/step
-step-ca/step-proxy.sqlite
+step-ca/
+step-internal/
+
+ca-conf/.step
+ca-conf/step
+ca-conf/step-proxy.sqlite
+
+*.sqlite
