@@ -195,14 +195,13 @@ func (ar *ApiRouter) auth(wr http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// TODO: Remove
-	logrus.Info(accessCredentials)
-
 	var user database.User
 	result := ar.DB.Where("clientId = ? AND clientSecret = ?", accessCredentials.ClientId, accessCredentials.ClientSecret).First(&user)
-	if result.Error != nil {
-		logrus.Error(result.Error)
-		sendProblem(wr, "/ra/isds/{isdNumber}/ases/{asNumber}/certificates/renewal", "Could not write response", http.StatusUnauthorized)
+	if result.Error != nil || result.RowsAffected == 0 {
+		if result.Error != nil {
+			logrus.Error(result.Error)
+		}
+		sendProblem(wr, "/ra/isds/{isdNumber}/ases/{asNumber}/certificates/renewal", "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 

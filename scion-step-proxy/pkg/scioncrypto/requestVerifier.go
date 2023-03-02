@@ -7,10 +7,15 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"sort"
+
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cms/protocol"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -125,17 +130,40 @@ func NewLocalFetcher(trcPath string) *LocalFetcher {
 
 }
 
-func (lf *LocalFetcher) SignedTRC(ctx context.Context, id cppki.TRCID) (cppki.SignedTRC, error) {
+func (lf *LocalFetcher) SignedTRC(ctx context.Context, isd addr.ISD) (cppki.SignedTRC, error) {
+
 	trc := cppki.SignedTRC{}
-	trcFile := filepath.Join(lf.TrcPath, fmt.Sprintf("%s.trc", id.String()))
-	logrus.Warn("Reading TRC ", trcFile)
+
+	// Load local trcs and find the one with the highest number
+	files, err := ioutil.ReadDir(lf.TrcPath)
+	if err != nil {
+		return trc, fmt.Errorf("Can not read trc files in %s: %v", lf.TrcPath, err)
+	}
+
+	if len(files) == 0 {
+		return trc, fmt.Errorf("No trc files in %s", lf.TrcPath)
+	}
+
+	fileNames := make([]string, 0)
+	for _, f := range files {
+		baseName := filepath.Base(f.Name())
+		if strings.Index(baseName, isd.String()) >= 0 {
+			fileNames = append(fileNames, baseName)
+		}
+	}
+
+	sort.Sort(sort.StringSlice(fileNames))
+	trcId := fileNames[len(fileNames)-1]
+
+	trcFile := filepath.Join(lf.TrcPath, fmt.Sprintf("%s.trc", trcId))
+	logrus.Info("Reading TRC ", trcFile)
 	bts, err := os.ReadFile(trcFile)
 	if err != nil {
 		return trc, nil
 	}
 
 	block, _ := pem.Decode(bts)
-	logrus.Warn("READ TRC")
+	logrus.Debug("Read TRC")
 	sTrc, err := DecodeSignedTRC(block.Bytes)
 	if err != nil {
 		return trc, err
@@ -147,7 +175,7 @@ type TRCFetcher interface {
 	// SignedTRC fetches the signed TRC for a given ID.
 	// The latest TRC can be requested by setting the serial and base number
 	// to scrypto.LatestVer.
-	SignedTRC(ctx context.Context, id cppki.TRCID) (cppki.SignedTRC, error)
+	SignedTRC(ctx context.Context, isd addr.ISD) (cppki.SignedTRC, error)
 }
 
 type RequestVerifier struct {
@@ -240,12 +268,8 @@ func (r RequestVerifier) verifyClientChain(ctx context.Context, chain []*x509.Ce
 	if err != nil {
 		return err
 	}
-	tid := cppki.TRCID{
-		ISD:    ia.ISD(),
-		Serial: 1,
-		Base:   1,
-	}
-	trc, err := r.TRCFetcher.SignedTRC(ctx, tid)
+
+	trc, err := r.TRCFetcher.SignedTRC(ctx, ia.ISD())
 	if err != nil {
 		return serrors.WrapStr("loading TRC to verify client chain", err)
 	}
@@ -265,7 +289,7 @@ func (r RequestVerifier) verifyClientChain(ctx context.Context, chain []*x509.Ce
 		}
 		graceID := trc.TRC.ID
 		graceID.Serial--
-		if err := r.verifyWithGraceTRC(ctx, now, graceID, chain); err != nil {
+		if err := r.verifyWithGraceTRC(ctx, now, graceID.ISD, chain); err != nil {
 			return serrors.WrapStr("verifying client chain with TRC in grace period "+
 				"after verification failure with latest TRC", err,
 				"trc_id", trc.TRC.ID,
@@ -280,7 +304,7 @@ func (r RequestVerifier) verifyClientChain(ctx context.Context, chain []*x509.Ce
 func (r RequestVerifier) verifyWithGraceTRC(
 	ctx context.Context,
 	now time.Time,
-	id cppki.TRCID,
+	id addr.ISD,
 	chain []*x509.Certificate,
 ) error {
 

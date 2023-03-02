@@ -2,9 +2,9 @@ package database
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 
+	caconfig "github.com/scionproto/scion/private/ca/config"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -39,7 +39,9 @@ func RunSeeds(db *gorm.DB, seedFilePath string) error {
 	}
 
 	for _, u := range data.Users {
-		fmt.Println(u)
+		secretKey := caconfig.NewPEMSymmetricKey(u.Clientsecret)
+		secretValue, err := secretKey.Get()
+		u.Clientsecret = string(secretValue)
 		if res := db.Create(&u); res.Error != nil {
 			return err
 		}
