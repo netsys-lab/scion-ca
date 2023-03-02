@@ -1,9 +1,0 @@
-{
-    "users": [
-        {
-            "name": "Admin",
-            "clientid": "ieloo2aiveaHiKe9Hie1vae9ietha1oh",
-            "clientsecret": "/etc/step-ca/shared-secret.pem"
-        }
-    ]
-}

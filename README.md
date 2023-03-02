@@ -9,6 +9,9 @@ The CA Service can be configured in the .toml file of the control service in a S
 ## Get Started
 The initial setup consists of a few steps that need to be done before you can deploy your own CA.
 
+### Change your environment
+Have a look at the `.env` file and configure the ISD-AS and the CA/AS information to your preferences.
+
 ### Create your own root certs and TRCs
 **Note:** This step should be performed according to this documentation only for testing purposes. Please refer to Anapaya's official guide for TRC creation and signing ceremonies.
 
