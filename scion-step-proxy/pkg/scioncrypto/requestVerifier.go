@@ -155,7 +155,7 @@ func (lf *LocalFetcher) SignedTRC(ctx context.Context, isd addr.ISD) (cppki.Sign
 	sort.Sort(sort.StringSlice(fileNames))
 	trcId := fileNames[len(fileNames)-1]
 
-	trcFile := filepath.Join(lf.TrcPath, fmt.Sprintf("%s.trc", trcId))
+	trcFile := filepath.Join(lf.TrcPath, trcId)
 	logrus.Info("Reading TRC ", trcFile)
 	bts, err := os.ReadFile(trcFile)
 	if err != nil {

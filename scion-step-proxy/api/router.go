@@ -188,6 +188,7 @@ func authJwt(tokenStr string, secret []byte) (*jwt.Token, error) {
 	}
 }
 
+// Unused for now, the CS is issuing its own jwts
 func (ar *ApiRouter) auth(wr http.ResponseWriter, req *http.Request) {
 	var accessCredentials models.AccessCredentials
 	if err := json.NewDecoder(req.Body).Decode(&accessCredentials); err != nil {
