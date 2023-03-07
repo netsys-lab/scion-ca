@@ -107,4 +107,33 @@ client_id = "YOUR CLIENT ID"
 ```
 
 ### Create and renew certificates
-Coming soon...
+This CA works the following way: To add a new AS to the ISD, at first create an initial AS certificate, later this certificate will be renewed automatically (see below for the configuration).
+
+#### Create initial certificates
+Start by copying a csr template for your ISD-AS you want to issue a certificate to the step-ca folder, e.g into `step-ca/1-999.csr.tmpl` for ISD 1 and AS 999. Change ISD-AS according to your settings in the tmpl.
+
+Next, create a csr and a key via scion-pki: `scion-pki certificate create --csr step-ca/1-999.csr.tmpl step-ca/1-999.as.csr step-ca/1-999.as.key`.
+
+This csr can now be signed via step-cli. The easiest way to do so is to run the sign command in the smallstep-cli-scion container: 
+
+`docker-compose exec  smallstep-cli-scion /bin/step ca sign --set isdAS=1-999 --provisioner-password-file=/etc/step-ca/scion-ca.pw --not-after=72h /etc/step-ca/1-999.as.csr /etc/step-ca/1-999.as.crt --ca-url=https://127.0.0.1:8443 --root=/etc/step-ca/.step/certs/root_ca.crt`. Please change isdAS parameter and the paths to csr/crt in this command according to your settings. 
+
+You can now validate and verify your new cert in `step-ca/1-999.as.crt`:
+
+`scion-pki certificate validate --type chain step-ca/1-999.as.crt`
+
+`scion-pki certificate verify --trc /etc/scion-ca/step-ca/ISD1-B1-S1.trc step-ca/1-999.as.crt`
+
+Both commands should result in no errors if everything is configured properly.
+
+#### Renew existing certificates
+Renewing certs can be done via scion-pki:
+
+`scion-pki certs renew --trc step-ca/ISD1-B1-S2.trc step-ca/1-999.as.crt step-ca/1-999.as.key --out step-ca/1-999.as-renew.crt --out-key step-ca/1-999.as-renew.key`
+
+This command will automatically connect to your CS and renew the cert via the scion-step-proxy. You can now validate and verify the new certs again.
+
+
+`scion-pki certificate validate --type chain step-ca/1-999.as-renew.crt`
+
+`scion-pki certificate verify --trc /etc/scion-ca/step-ca/ISD1-B1-S1.trc step-ca/1-999.as-renew.crt`
