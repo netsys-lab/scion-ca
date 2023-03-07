@@ -1,5 +1,7 @@
 # scion-ca
-Repo for smallstep CA to run in the SCION Education Network, i.e. in the GEANT Core AS
+Repo for smallstep CA to run in the SCION Education Network.
+
+This repo contains the CA deployment. For the renewing part on the endhosts refer to the [scionlab-cert-renewer](https://github.com/netsys-lab/scionlab-cert-renewer)
 
 ## Setup
 The CA Service can be configured in the .toml file of the control service in a SCION AS. There is a mode called "delegating" which makes the CS talk to an external CA Service via HTTP implementing [this interface](https://github.com/scionproto/scion/blob/master/spec/ca.gen.yml).
