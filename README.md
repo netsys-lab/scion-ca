@@ -1,5 +1,5 @@
 # scion-ca
-Repo for smallstep CA to run in the SCION Education Network.
+Repo for smallstep to run as a CA for SCION CPPKI.
 
 This repo contains the CA deployment. For the renewing part on the endhosts refer to the [scionlab-cert-renewer](https://github.com/netsys-lab/scionlab-cert-renewer)
 
