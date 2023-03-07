@@ -41,8 +41,8 @@ func NewStepCliAdapter() *StepCliAdapter {
 	}
 }
 
-func (sca *StepCliAdapter) SignCert(scrPath, outputPath, duration string) error {
-	cmd := exec.Command("step", "ca", "sign", fmt.Sprintf("--provisioner-password-file=%s", sca.provisionerPassword), fmt.Sprintf("--not-after=%s", duration), scrPath, outputPath, fmt.Sprintf("--ca-url=%s", sca.caUrl), fmt.Sprintf("--root=%s", sca.rootCert))
+func (sca *StepCliAdapter) SignCert(scrPath, outputPath, duration string, isdAS string) error {
+	cmd := exec.Command("step", "ca", "sign", "--set", fmt.Sprintf("isdAS=%s", isdAS), fmt.Sprintf("--provisioner-password-file=%s", sca.provisionerPassword), fmt.Sprintf("--not-after=%s", duration), scrPath, outputPath, fmt.Sprintf("--ca-url=%s", sca.caUrl), fmt.Sprintf("--root=%s", sca.rootCert))
 
 	var out bytes.Buffer
 	var stdErr bytes.Buffer

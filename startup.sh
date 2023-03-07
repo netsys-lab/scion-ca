@@ -21,4 +21,4 @@ fi
 
 sleep infinity
 
-# step ca certificate --not-after=24h --provisioner-password-file=/etc/step-ca/scion-ca.pw --ca-url=https://127.0.0.1:8443 --root=/etc/step-ca/.step/certs/root_ca.crt "1-999 AS Certificate" /etc/step-ca/tmp.crt /etc/step-ca/tmp.key
+# step ca certificate --kty=RSA --not-after=24h --provisioner-password-file=/etc/step-ca/scion-ca.pw --ca-url=https://127.0.0.1:8443 --root=/etc/step-ca/.step/certs/root_ca.crt "1-999 AS Certificate" /etc/step-ca/tmp.crt /etc/step-ca/tmp.key

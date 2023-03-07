@@ -72,7 +72,7 @@ func VerifyCMSSignedRenewalRequest(ctx context.Context,
 	return csr, nil // r.processCSR(csr, chain[0])
 }
 
-func ExtractAndVerifyCsr(trcPath string, bts []byte, file *os.File) error {
+func ExtractAndVerifyCsr(trcPath string, bts []byte, file *os.File) (*x509.CertificateRequest, error) {
 	r := RequestVerifier{
 		TRCFetcher: &LocalFetcher{
 			TrcPath: trcPath,
@@ -81,14 +81,14 @@ func ExtractAndVerifyCsr(trcPath string, bts []byte, file *os.File) error {
 
 	csr, err := VerifyCMSSignedRenewalRequest(context.Background(), bts, &r)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = pem.Encode(file, &pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csr.Raw})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return csr, nil
 }
 
 // DecodeSignedTRC parses the signed TRC.

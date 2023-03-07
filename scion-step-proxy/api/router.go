@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -107,7 +108,7 @@ func (ar *ApiRouter) renewCert(wr http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = scioncrypto.ExtractAndVerifyCsr(ar.TrcPath, bts, file)
+	csr, err := scioncrypto.ExtractAndVerifyCsr(ar.TrcPath, bts, file)
 	if err != nil {
 		logrus.Error(err)
 		sendProblem(wr, "/ra/isds/{isdNumber}/ases/{asNumber}/certificates/renewal", "Internal Server Error", http.StatusInternalServerError)
@@ -130,7 +131,15 @@ func (ar *ApiRouter) renewCert(wr http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = stepCli.SignCert(file.Name(), certFileName, ar.CertDuration)
+	isdAS := fmt.Sprintf("%s-%s", isdNumber, asNumber)
+	if len(csr.Subject.ExtraNames) > 0 {
+		str, ok := csr.Subject.ExtraNames[0].Value.(string)
+		if ok {
+			isdAS = str
+		}
+	}
+	logrus.Info("Got ISDAS ", isdAS)
+	err = stepCli.SignCert(file.Name(), certFileName, ar.CertDuration, isdAS)
 	// os.Remove(file.Name())
 	if err != nil {
 		logrus.Error(err)
@@ -161,7 +170,27 @@ func authJwt(tokenStr string, secret []byte) (*jwt.Token, error) {
 
 	// Remove bearer things
 	realToken := strings.Replace(tokenStr, "Bearer ", "", 1)
-	// logrus.Info(realToken)
+	logrus.Info(realToken)
+	logrus.Info(time.Now())
+
+	timeOffset := ""
+	timeOffsetEnv := os.Getenv("JWT_SUPPORTED_TIME_OFFSET_MINS")
+	if timeOffsetEnv != "" {
+		timeOffset = timeOffsetEnv
+	}
+
+	if timeOffset != "" {
+		realTimeOffset, err := strconv.Atoi(timeOffset)
+		if err != nil {
+			logrus.Warn("Failed to pase JWT_SUPPORTED_TIME_OFFSET_MINS=", timeOffsetEnv)
+		} else {
+			logrus.Info("Adjusting time offset to ", realTimeOffset, " minutes")
+			jwt.TimeFunc = func() time.Time {
+				return time.Now().Add(time.Minute * time.Duration(realTimeOffset))
+			}
+		}
+
+	}
 
 	// Parse takes the token string and a function for looking up the key. The latter is especially
 	// useful if you use multiple keys for your application.  The standard is to use 'kid' in the
