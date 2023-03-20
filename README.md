@@ -6,7 +6,8 @@ This repo contains the CA deployment. For the renewing part on the endhosts refe
 ## Setup
 The CA Service can be configured in the .toml file of the control service in a SCION AS. There is a mode called "delegating" which makes the CS talk to an external CA Service via HTTP implementing [this interface](https://github.com/scionproto/scion/blob/master/spec/ca.gen.yml).
 
-![geant-scion-ca](https://user-images.githubusercontent.com/32448709/185569635-a538f8bc-965a-4a6c-a166-1673f2a66b0f.jpg)
+![education-ca (10)](https://user-images.githubusercontent.com/32448709/226290364-f1903ed4-0904-408a-a543-58f211dac3ab.jpg)
+
 
 ## Get Started
 The initial setup consists of a few steps that need to be done before you can deploy your own CA.
